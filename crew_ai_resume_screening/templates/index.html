@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Resume Screening | Hope AI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="container">
+    <header>
+      <p class="eyebrow">HOPE AI · CREWAI PROJECT</p>
+      <h1>AI Resume Screening</h1>
+      <p class="subtitle">Compare every resume in the resume folder with a selected job description.</p>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="alert {{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post" class="panel">
+      <label for="job_description">Job description</label>
+      <select id="job_description" name="job_description" required>
+        <option value="">Select a job description</option>
+        {% for filename in job_descriptions %}
+          <option value="{{ filename }}" {% if filename == selected_job_description %}selected{% endif %}>{{ filename }}</option>
+        {% endfor %}
+      </select>
+
+      <button type="submit">Screen All Resumes</button>
+      <p class="hint">
+        All PDF, DOCX, and TXT resumes in the resume folder will be compared with this job description.
+        Each resume is screened separately and may incur separate model usage.
+      </p>
+    </form>
+
+    {% if not resumes %}
+      <p class="alert error">No supported resumes found in the resume folder.</p>
+    {% endif %}
+    {% if not job_descriptions %}
+      <p class="alert error">No supported job descriptions found in the job_description folder.</p>
+    {% endif %}
+
+    {% if results is not none %}
+      <section class="panel result">
+        <div class="result-heading">
+          <h2>Resume comparison</h2>
+          <span class="flow-id">Job description: {{ selected_job_description }}</span>
+        </div>
+        <p class="hint">
+          Match score is an indicative evidence aid: each distinct job requirement is equally weighted;
+          met = 1, partial = 0.5, and not evidenced = 0. It is not a probability or hiring decision.
+          Missing evidence does not prove a candidate lacks a qualification. Verify results manually.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Resume</th>
+                <th scope="col">Relevant experience</th>
+                <th scope="col">Education / certifications</th>
+                <th scope="col">Relevant skills</th>
+                <th scope="col">Job requirement evidence</th>
+                <th scope="col">Match score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in results %}
+                <tr>
+                  <th scope="row">{{ row.filename }}</th>
+                  {% if row.error %}
+                    <td colspan="5" class="error-cell">Could not screen this resume: {{ row.error }}</td>
+                  {% else %}
+                    <td>
+                      {% if row.assessment.relevant_experience %}
+                        <ul>{% for detail in row.assessment.relevant_experience %}<li>{{ detail }}</li>{% endfor %}</ul>
+                      {% else %}Not stated{% endif %}
+                    </td>
+                    <td>
+                      {% if row.assessment.education %}
+                        <ul>{% for detail in row.assessment.education %}<li>{{ detail }}</li>{% endfor %}</ul>
+                      {% else %}Not stated{% endif %}
+                    </td>
+                    <td>
+                      {% if row.assessment.skills %}
+                        <ul>{% for detail in row.assessment.skills %}<li>{{ detail }}</li>{% endfor %}</ul>
+                      {% else %}Not stated{% endif %}
+                    </td>
+                    <td>
+                      {% if row.assessment.requirements %}
+                        <ul class="requirements">
+                          {% for item in row.assessment.requirements %}
+                            <li>
+                              <strong>{{ item.requirement }}</strong>
+                              <span class="status status-{{ item.status }}">{{ item.status|replace('_', ' ') }}</span>
+                              <br>{{ item.evidence }}
+                            </li>
+                          {% endfor %}
+                        </ul>
+                      {% else %}No assessable requirements found{% endif %}
+                    </td>
+                    <td class="score">
+                      {% if row.match_score is none %}N/A{% else %}{{ row.match_score }} / 100{% endif %}
+                    </td>
+                  {% endif %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <button type="button" class="secondary" onclick="window.print()">Print report</button>
+      </section>
+    {% endif %}
+
+    <footer>
+      <strong>Important:</strong> This tool provides decision support only. It can make mistakes.
+      A qualified human recruiter must verify the evidence and make every hiring decision.
+      Do not use protected characteristics or sensitive personal data to rank candidates.
+      Use resume files only when you have a lawful basis and appropriate consent.
+    </footer>
+  </main>
+</body>
+</html>
